@@ -16,7 +16,7 @@ async def root():
 async def PlayTimeGenre(genero: str):
     try:
         # Leer el dataframe desde el archivo parquet
-        df = pd.read_parquet('Data/Data-Endpoints/generos.parquet')
+        df = pd.read_parquet('generos.parquet')
 
         # Obtener la lista de géneros válidos
         generos_validos = list(df['genres'].drop_duplicates())
