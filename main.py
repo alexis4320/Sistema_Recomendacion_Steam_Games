@@ -46,7 +46,7 @@ async def PlayTimeGenre(genero: str):
     
     except Exception as e:
         # Capturar y retornar un mensaje genérico en caso de otros errores
-        return JSONResponse(content={"Error": f"Ocurrió un error al procesar la solicitud.{e}"}, status_code=500)
+        return JSONResponse(content={"Error": f"Ocurrió un error al procesar la solicitud"}, status_code=500)
 
 
 
