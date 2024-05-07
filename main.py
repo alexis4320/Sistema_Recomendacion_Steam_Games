@@ -5,16 +5,14 @@ import scipy
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics.pairwise import cosine_similarity
-import pyarrow.parquet as pq
 
 app = FastAPI()
 
-# Leemos el dataframe
+# Leemos dataframe
+df1 = pd.read_parquet('generos.parquet')
+df2 = pd.read_parquet('users_generos.parquet')
+df6 = pd.read_parquet('modelo.parquet')
 
-
-df2 = pq.read_table('users_generos.parquet').to_pandas()
-
-df6 = pq.read_table('modelo.parquet').to_pandas()
 
 @app.get("/")
 async def root():
@@ -36,20 +34,19 @@ async def PlayTimeGenre(genero: str):
     """
     try:
 
-        df1 = pq.read_table('generos.parquet').to_pandas()
-
+        df = df1.copy()
         # Obtener la lista de géneros válidos
-        generos_validos = list(df1['genres'].drop_duplicates())
+        generos_validos = list(df['genres'].drop_duplicates())
 
         # Validar si el género proporcionado está en la lista de géneros válidos
         if genero.capitalize() not in generos_validos:
             raise HTTPException(status_code=400, detail=f"El género '{genero}' no es válido.")
         
         # Filtrar el dataframe por el género especificado
-        df1 = df1[df1['genres'] == genero.capitalize()]
+        df = df[df['genres'] == genero.capitalize()]
 
         # Calcular la suma de horas jugadas por año para el género especificado
-        df_agrupado = df1.groupby('release_year')['playtime_forever'].sum().reset_index()
+        df_agrupado = df.groupby('release_year')['playtime_forever'].sum().reset_index()
 
         # Encontrar el año con más horas jugadas para el género especificado
         año_mas_horas = df_agrupado.loc[df_agrupado['playtime_forever'].idxmax()]['release_year']
@@ -81,6 +78,7 @@ async def UserForGenre(genero: str):
     - Diccionario que contiene el usuario con más horas jugadas para el genero dado y las horas jugadas por año para ese género.
     """
     try:
+
         # Convertir el género a minúsculas para realizar la búsqueda sin distinción entre mayúsculas y minúsculas
         genero_minuscula = genero.lower()
 
@@ -151,7 +149,7 @@ async def recomendacion_juego(item_id: int):
         text_matrix = count_vectorizer.fit_transform(df6['combined_text'])
 
         #Normalizar características numéricas
-        numeric_features = ['negative_reviews', 'neutral_reviews', 'positive_reviews','no_recommend_count','recommend_count'] 
+        numeric_features = ['negative_reviews', 'neutral_reviews', 'positive_reviews'] 
         scaler = StandardScaler()
         numeric_matrix = scaler.fit_transform(df6[numeric_features])
 
