@@ -30,17 +30,17 @@ async def PlayTimeGenre(genero: str):
 
         df1 = pd.read_parquet('generos.parquet')
         # Obtener la lista de géneros válidos
-        generos_validos = list(df['genres'].drop_duplicates())
+        generos_validos = list(df1['genres'].drop_duplicates())
 
         # Validar si el género proporcionado está en la lista de géneros válidos
         if genero.capitalize() not in generos_validos:
             raise HTTPException(status_code=400, detail=f"El género '{genero}' no es válido.")
         
         # Filtrar el dataframe por el género especificado
-        df = df[df['genres'] == genero.capitalize()]
+        df1 = df1[df1['genres'] == genero.capitalize()]
 
         # Calcular la suma de horas jugadas por año para el género especificado
-        df_agrupado = df.groupby('release_year')['playtime_forever'].sum().reset_index()
+        df_agrupado = df1.groupby('release_year')['playtime_forever'].sum().reset_index()
 
         # Encontrar el año con más horas jugadas para el género especificado
         año_mas_horas = df_agrupado.loc[df_agrupado['playtime_forever'].idxmax()]['release_year']
