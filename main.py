@@ -5,10 +5,16 @@ import scipy
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics.pairwise import cosine_similarity
-
+import pyarrow.parquet as pq
 
 app = FastAPI()
 
+# Leemos el dataframe
+
+
+df2 = pq.read_table('users_generos.parquet').to_pandas()
+
+df6 = pq.read_table('modelo.parquet').to_pandas()
 
 @app.get("/")
 async def root():
@@ -29,21 +35,21 @@ async def PlayTimeGenre(genero: str):
 
     """
     try:
-        # Leer el dataframe desde el archivo parquet
-        df = pd.read_parquet('generos.parquet')
+
+        df1 = pq.read_table('generos.parquet').to_pandas()
 
         # Obtener la lista de géneros válidos
-        generos_validos = list(df['genres'].drop_duplicates())
+        generos_validos = list(df1['genres'].drop_duplicates())
 
         # Validar si el género proporcionado está en la lista de géneros válidos
         if genero.capitalize() not in generos_validos:
             raise HTTPException(status_code=400, detail=f"El género '{genero}' no es válido.")
         
         # Filtrar el dataframe por el género especificado
-        df = df[df['genres'] == genero.capitalize()]
+        df1 = df1[df1['genres'] == genero.capitalize()]
 
         # Calcular la suma de horas jugadas por año para el género especificado
-        df_agrupado = df.groupby('release_year')['playtime_forever'].sum().reset_index()
+        df_agrupado = df1.groupby('release_year')['playtime_forever'].sum().reset_index()
 
         # Encontrar el año con más horas jugadas para el género especificado
         año_mas_horas = df_agrupado.loc[df_agrupado['playtime_forever'].idxmax()]['release_year']
@@ -60,7 +66,7 @@ async def PlayTimeGenre(genero: str):
     
     except Exception as e:
         # Capturar y retornar un mensaje genérico en caso de otros errores
-        return JSONResponse(content={"Error": f"Ocurrió un error al procesar la solicitud"}, status_code=500)
+        return JSONResponse(content={"Error": f"Ocurrió un error al procesar la solicitud{e}"}, status_code=500)
 
 
 @app.get('/horas_jugadas_usuario/{genero}')
@@ -75,14 +81,11 @@ async def UserForGenre(genero: str):
     - Diccionario que contiene el usuario con más horas jugadas para el genero dado y las horas jugadas por año para ese género.
     """
     try:
-        # Leemos el dataframe
-        df = pd.read_parquet('users_generos.parquet')
-        
         # Convertir el género a minúsculas para realizar la búsqueda sin distinción entre mayúsculas y minúsculas
         genero_minuscula = genero.lower()
 
         # Filtrar el DataFrame para el género especificado (ignorando mayúsculas y minúsculas)
-        df_filtered = df[df['genres'].str.lower().str.contains(genero_minuscula, na=False)]
+        df_filtered = df2[df2['genres'].str.lower().str.contains(genero_minuscula, na=False)]
 
         if df_filtered.empty:
             raise HTTPException(status_code=400, detail=f"No se encontraron datos para el género '{genero}'.")
@@ -135,10 +138,9 @@ async def recomendacion_juego(item_id: int):
     - Lista de 5 nombres de juegos recomendados únicos (sin repeticiones) que no incluye el juego dado como argumento.
     """
     try:
-        df = pd.read_parquet('modelo.parquet')
 
         # Obtener la lista de géneros válidos
-        items_validos = list(df['item_id'].drop_duplicates())
+        items_validos = list(df6['item_id'].drop_duplicates())
 
         # Validar si el género proporcionado está en la lista de géneros válidos
         if item_id not in items_validos:
@@ -146,12 +148,12 @@ async def recomendacion_juego(item_id: int):
         
         #Inicializar CountVectorizer para convertir texto en una matriz de recuentos de términos
         count_vectorizer = CountVectorizer()
-        text_matrix = count_vectorizer.fit_transform(df['combined_text'])
+        text_matrix = count_vectorizer.fit_transform(df6['combined_text'])
 
         #Normalizar características numéricas
         numeric_features = ['negative_reviews', 'neutral_reviews', 'positive_reviews','no_recommend_count','recommend_count'] 
         scaler = StandardScaler()
-        numeric_matrix = scaler.fit_transform(df[numeric_features])
+        numeric_matrix = scaler.fit_transform(df6[numeric_features])
 
         # Combinar matrices de características de texto y numéricas. Usamos el modulo scipy.sparse que optimiza los calculos para matrices que tienen en su mayoria ceros.
         combined_matrix = scipy.sparse.hstack((text_matrix, numeric_matrix))
@@ -160,7 +162,7 @@ async def recomendacion_juego(item_id: int):
         cosine_sim = cosine_similarity(combined_matrix, combined_matrix)
 
         # Obtener el índice del juego correspondiente al nombre dado
-        idx = df[df['item_id'] == item_id].index[0]
+        idx = df6[df6['item_id'] == item_id].index[0]
         # Calcular la similitud del juego con todos los demás juegos en la muestra
         sim_scores = list(enumerate(cosine_sim[idx]))
 
@@ -168,13 +170,13 @@ async def recomendacion_juego(item_id: int):
         sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
 
         # Obtener los índices de los juegos más similares (excluyendo el juego dado)
-        sim_scores = [score for score in sim_scores if df.iloc[score[0]]['item_id'] != item_id][:5]
+        sim_scores = [score for score in sim_scores if df6.iloc[score[0]]['item_id'] != item_id][:5]
 
         # Obtener los nombres de los juegos recomendados (excluyendo repeticiones)
         recommended_games = []
         seen_games = set()
         for score in sim_scores:
-            game_name = df.iloc[score[0]]['title']
+            game_name = df6.iloc[score[0]]['title']
             if game_name not in seen_games:
                 recommended_games.append(game_name)
                 seen_games.add(game_name)
@@ -190,4 +192,3 @@ async def recomendacion_juego(item_id: int):
     except Exception as e:
         # Capturar y retornar un mensaje genérico en caso de otros errores
         return JSONResponse(content={"Error": f"Ocurrió un error al procesar la solicitud{e}"}, status_code=500)
-
