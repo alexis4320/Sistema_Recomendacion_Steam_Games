@@ -8,12 +8,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 app = FastAPI()
 
-# Leemos dataframe
-df1 = pd.read_parquet('generos.parquet')
-df2 = pd.read_parquet('users_generos.parquet')
-df6 = pd.read_parquet('modelo.parquet')
-
-
 @app.get("/")
 async def root():
     return {
@@ -34,7 +28,7 @@ async def PlayTimeGenre(genero: str):
     """
     try:
 
-        df = df1.copy()
+        df1 = pd.read_parquet('generos.parquet')
         # Obtener la lista de géneros válidos
         generos_validos = list(df['genres'].drop_duplicates())
 
@@ -78,6 +72,7 @@ async def UserForGenre(genero: str):
     - Diccionario que contiene el usuario con más horas jugadas para el genero dado y las horas jugadas por año para ese género.
     """
     try:
+        df2 = pd.read_parquet('users_generos.parquet')
 
         # Convertir el género a minúsculas para realizar la búsqueda sin distinción entre mayúsculas y minúsculas
         genero_minuscula = genero.lower()
@@ -136,6 +131,7 @@ async def recomendacion_juego(item_id: int):
     - Lista de 5 nombres de juegos recomendados únicos (sin repeticiones) que no incluye el juego dado como argumento.
     """
     try:
+        df6 = pd.read_parquet('modelo.parquet')
 
         # Obtener la lista de géneros válidos
         items_validos = list(df6['item_id'].drop_duplicates())
